@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlexOS · Universal OS</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --page-bg:   #0f1520;
+      --card-bg:   #1a2236;
+      --topbar-bg: #111827;
+      --text:      #e2e8f8;
+      --muted:     rgba(160,185,230,0.55);
+      --border:    rgba(255,255,255,0.06);
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      color: var(--text);
+      background: var(--page-bg);
+    }
+
+    .bg-spotlight {
+      position: fixed; inset: 0; z-index: 1; pointer-events: none;
+      background: radial-gradient(
+        circle 380px at var(--mx, -999px) var(--my, -999px),
+        rgba(80,130,255,0.13)  0%,
+        rgba(60,100,220,0.07)  35%,
+        transparent            70%
+      );
+      transition: background 0.05s linear;
+    }
+
+    .bg-layer {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background:
+        radial-gradient(ellipse 60% 50% at 15% 10%,  rgba(40,70,180,0.15)  0%, transparent 70%),
+        radial-gradient(ellipse 45% 40% at 88% 8%,   rgba(80,40,160,0.10)  0%, transparent 65%),
+        radial-gradient(ellipse 50% 40% at 50% 95%,  rgba(20,60,140,0.10)  0%, transparent 70%),
+        linear-gradient(180deg, #111b2e 0%, #0f1520 45%, #0e1428 100%);
+    }
+
+    /* topbar unchanged */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px; height: 54px;
+      background: rgba(10,14,26,0.96);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      flex-shrink: 0; position: relative; z-index: 10;
+      backdrop-filter: blur(20px);
+    }
+    .topbar::after {
+      content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(50,100,255,0.45) 20%,
+        rgba(120,60,220,0.4)  50%,
+        rgba(10,180,200,0.35) 80%,
+        transparent 100%);
+    }
+
+    .topbar-left { display: flex; align-items: center; gap: 12px; }
+    .logo-icon {
+      width: 30px; height: 30px;
+      background: linear-gradient(135deg, #3d6fff, #9040e8);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; color: white;
+      box-shadow: 0 0 16px rgba(61,111,255,0.45);
+      transition: transform .3s, box-shadow .3s;
+    }
+    .logo-icon:hover { transform: scale(1.1) rotate(8deg); box-shadow: 0 0 28px rgba(61,111,255,0.75); }
+    .logo-text {
+      font-size: 15px; font-weight: 800; letter-spacing: -.3px;
+      background: linear-gradient(90deg, #6b9fff, #b87eff);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .logo-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; color: var(--muted); letter-spacing: 1.4px; margin-top: 1px;
+    }
+
+    .topbar-center {
+      position: absolute; left: 50%; transform: translateX(-50%);
+      font-size: 12px; font-weight: 500; color: rgba(160,190,240,0.38); letter-spacing: .2px;
+    }
+
+    .topbar-right { display: flex; align-items: center; gap: 8px; }
+    .pill {
+      display: flex; align-items: center; gap: 5px;
+      padding: 4px 11px; border-radius: 20px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: var(--muted);
+      transition: all .2s;
+    }
+    .pill:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.6); }
+    .pill-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #22e07a; box-shadow: 0 0 7px rgba(34,224,122,0.9);
+      animation: blink 2.5s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+    .clock {
+      font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700;
+      color: #c8d8f8; padding: 5px 13px; border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.04);
+      letter-spacing: .5px;
+    }
+
+    /* ===== GRID – bigger gaps & outer margins ===== */
+    .grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 28px;                 /* significantly increased */
+      padding: 24px 28px;        /* more outer margin */
+      min-height: 0;
+      position: relative; z-index: 5;
+    }
+
+    /* ===== SMALLER CARDS ===== */
+    .card {
+      border-radius: 16px;
+      padding: 12px 16px 12px;   /* reduced padding */
+      position: relative; overflow: hidden;
+      display: flex; flex-direction: column; justify-content: space-between;
+      cursor: pointer;
+
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
+
+      transition:
+        transform .42s cubic-bezier(.2,.9,.3,1.15),
+        box-shadow .42s ease,
+        border-color .35s ease,
+        background .42s ease;
+
+      animation: cardIn .55s cubic-bezier(.2,.9,.3,1) both;
+    }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(16px) scale(.97); }
+      to   { opacity: 1; transform: translateY(0)    scale(1);   }
+    }
+    .grid > *:nth-child(1) { animation-delay: .05s; }
+    .grid > *:nth-child(2) { animation-delay: .10s; }
+    .grid > *:nth-child(3) { animation-delay: .15s; }
+    .grid > *:nth-child(4) { animation-delay: .20s; }
+    .grid > *:nth-child(5) { animation-delay: .25s; }
+    .grid > *:nth-child(6) { animation-delay: .30s; }
+
+    /* Per-card accent color + hover background */
+    .card-pc        { --c:#4f8bff; --cr:79,139,255;
+      --hbg: linear-gradient(145deg, #0c1d5e 0%, #1535a0 50%, #0e2478 100%); }
+    .card-gestura   { --c:#c870ff; --cr:200,112,255;
+      --hbg: linear-gradient(145deg, #2e0858 0%, #7a18c8 45%, #9e20b8 75%, #c03090 100%); }
+    .card-iriskey   { --c:#12d9c2; --cr:18,217,194;
+      --hbg: linear-gradient(145deg, #053530 0%, #0b7a6a 50%, #086858 100%); }
+    .card-echovault { --c:#ff7835; --cr:255,120,53;
+      --hbg: linear-gradient(145deg, #5a1400 0%, #c04010 50%, #8a2a08 100%); }
+    .card-facevault { --c:#f8c020; --cr:248,192,32;
+      --hbg: linear-gradient(145deg, #483000 0%, #a86800 50%, #7a4800 100%); }
+    .card-polytalk  { --c:#cc3ef8; --cr:204,62,248;
+      --hbg: linear-gradient(145deg, #350050 0%, #8800c8 50%, #5a0090 100%); }
+
+    .card:hover {
+      transform: translateY(-10px) scale(1.026);
+      background: var(--hbg);
+      border-color: rgba(var(--cr), 0.5);
+      box-shadow:
+        0 28px 58px -14px rgba(var(--cr), 0.65),
+        0 0 0 1px rgba(var(--cr), 0.28),
+        inset 0 1px 0 rgba(255,255,255,0.14),
+        inset 0 -1px 0 rgba(0,0,0,0.25);
+    }
+
+    .card::before {
+      content: '';
+      position: absolute; top: 0; left: 18%; right: 18%; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(var(--cr),0.75), transparent);
+      opacity: 0; z-index: 3;
+      transition: left .35s, right .35s, opacity .35s;
+    }
+    .card:hover::before { left: 0; right: 0; opacity: 1; }
+
+    .card-glow {
+      position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%);
+      width: 55%; height: 85px;
+      background: radial-gradient(ellipse, rgba(var(--cr),0.25) 0%, transparent 72%);
+      pointer-events: none; z-index: 1; opacity: 0;
+      transition: opacity .4s, width .4s;
+    }
+    .card:hover .card-glow { opacity: 1; width: 82%; }
+
+    .card-spotlight {
+      position: absolute; inset: 0; border-radius: 16px; pointer-events: none;
+      background: radial-gradient(circle at var(--x,50%) var(--y,50%), rgba(255,255,255,0.07) 0%, transparent 52%);
+      opacity: 0; transition: opacity .1s; z-index: 2;
+    }
+    .card:hover .card-spotlight { opacity: 1; }
+
+    .card-shimmer {
+      position: absolute; inset: 0; border-radius: 16px; pointer-events: none;
+      background: linear-gradient(110deg, transparent 15%, rgba(255,255,255,0.08) 50%, transparent 85%);
+      transform: translateX(-130%); z-index: 2; transition: transform .62s ease;
+    }
+    .card:hover .card-shimmer { transform: translateX(130%); }
+
+    .scan-corner {
+      position: absolute; width: 11px; height: 11px;
+      border-color: rgba(var(--cr),0.85); border-style: solid;
+      pointer-events: none; z-index: 5; opacity: 0; transition: opacity .3s;
+    }
+    .card.auto-active .scan-corner { opacity: 1; }
+    .scan-corner.tl { top:8px; left:8px;  border-width:2px 0 0 2px; border-radius:3px 0 0 0; }
+    .scan-corner.tr { top:8px; right:8px; border-width:2px 2px 0 0; border-radius:0 3px 0 0; }
+    .scan-corner.bl { bottom:8px; left:8px;  border-width:0 0 2px 2px; border-radius:0 0 0 3px; }
+    .scan-corner.br { bottom:8px; right:8px; border-width:0 2px 2px 0; border-radius:0 0 3px 0; }
+
+    .scan-line {
+      position: absolute; left: 11px; right: 11px; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(var(--cr),0.65), transparent);
+      pointer-events: none; z-index: 5; opacity: 0;
+      animation: scanMove 2s linear infinite;
+    }
+    .card.auto-active .scan-line { opacity: 1; }
+    @keyframes scanMove { 0%{top:11px} 100%{top:calc(100% - 11px)} }
+
+    .card.auto-active {
+      border-color: rgba(var(--cr), 0.32) !important;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.35), 0 0 24px rgba(var(--cr),0.13) !important;
+    }
+
+    /* card layout with smaller icon */
+    .card-top {
+      display: flex; align-items: center; justify-content: space-between;
+      position: relative; z-index: 3;
+    }
+    .card-num {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      color: rgba(255,255,255,0.1); letter-spacing: 1px; transition: color .3s;
+    }
+    .card:hover .card-num { color: rgba(255,255,255,0.38); }
+
+    .status-row { display: flex; align-items: center; gap: 5px; }
+    .status-label {
+      font-size: 11px; font-weight: 500; color: var(--muted);
+      letter-spacing: .2px; transition: color .3s;
+    }
+    .card:hover .status-label { color: rgba(255,255,255,0.88); }
+    .status-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #22e07a; box-shadow: 0 0 7px rgba(34,224,122,0.9);
+      animation: statusPulse 2.5s ease-in-out infinite;
+    }
+    @keyframes statusPulse {
+      0%,100%{ box-shadow:0 0 5px rgba(34,224,122,.7); }
+      50%{ box-shadow:0 0 12px rgba(34,224,122,1),0 0 22px rgba(34,224,122,.5); transform:scale(1.2); }
+    }
+
+    .card-middle {
+      display: flex; align-items: center; padding: 4px 0;  /* reduced */
+      position: relative; z-index: 3;
+    }
+
+    /* smaller icon box */
+    .icon-box {
+      width: 52px; height: 52px; border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; color: white; position: relative; flex-shrink: 0;
+      background: var(--ibg);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.24), inset 0 -1px 0 rgba(0,0,0,0.2);
+      transition: transform .42s cubic-bezier(.34,1.56,.64,1), box-shadow .38s, filter .28s;
+    }
+    .icon-box::before {
+      content: '';
+      position: absolute; top: 3px; left: 5px; right: 5px; height: 42%;
+      border-radius: 12px 12px 6px 6px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.28) 0%, transparent 100%);
+      pointer-events: none;
+    }
+    .icon-box::after {
+      content: ''; position: absolute; inset: -5px; border-radius: 20px;
+      border: 1.5px solid rgba(var(--cr), 0.7);
+      opacity: 0; transition: opacity .35s, inset .3s;
+    }
+    .card:hover .icon-box {
+      transform: scale(1.18) rotate(-7deg);
+      filter: brightness(1.12) saturate(1.2);
+      box-shadow: 0 18px 42px -8px rgba(var(--cr),0.7), inset 0 1px 0 rgba(255,255,255,0.3);
+    }
+    .card:hover .icon-box::after { opacity: 1; inset: -3px; }
+
+    .card-bottom { position: relative; z-index: 3; }
+
+    .card-title {
+      font-size: 17px; font-weight: 800; color: #eef3ff;
+      letter-spacing: -.4px; margin-bottom: 5px;
+      display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+      transition: text-shadow .3s;
+    }
+    .card:hover .card-title { text-shadow: 0 0 20px rgba(255,255,255,0.22); }
+
+    .badge {
+      font-size: 10px; font-weight: 500;
+      color: rgba(160,185,225,0.65);
+      background: rgba(255,255,255,0.06);
+      padding: 2px 8px; border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.09);
+      letter-spacing: .4px; transition: all .3s;
+    }
+    .card:hover .badge {
+      background: rgba(255,255,255,0.16);
+      border-color: rgba(255,255,255,0.32);
+      color: rgba(255,255,255,0.95);
+    }
+
+    .card-sub {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 400; color: var(--muted);
+      transition: color .3s, transform .3s;
+    }
+    .card:hover .card-sub { color: rgba(255,255,255,0.78); transform: translateX(4px); }
+
+    .spark { font-size: 10px; color: var(--c); transition: filter .3s; }
+    .card:hover .spark { filter: drop-shadow(0 0 8px rgba(255,255,255,0.7)); color: white; }
+
+    .arrow { font-size: 10px; opacity: 0; transform: translateX(-5px); transition: opacity .25s, transform .25s; }
+    .card:hover .arrow { opacity: 1; transform: translateX(0); }
+
+    a.card-link { display: contents; text-decoration: none; color: inherit; }
+    a.card-link .card { width: 100%; height: 100%; }
+
+    /* dock unchanged */
+    .dock-wrap {
+      display: flex; justify-content: center;
+      padding: 8px 0 14px; flex-shrink: 0; position: relative; z-index: 20;
+    }
+    .dock {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(10,14,24,0.94);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 22px; padding: 9px 18px;
+      backdrop-filter: blur(28px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04);
+      position: relative;
+    }
+    .dock::before {
+      content: ''; position: absolute; top: 0; left: 20%; right: 20%; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.11), transparent);
+    }
+    .dock-sep { width: 1px; height: 26px; background: rgba(255,255,255,0.08); margin: 0 2px; }
+
+    .dock-btn {
+      width: 46px; height: 46px; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; color: white; position: relative;
+      background: var(--ibg);
+      box-shadow: 0 3px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.22);
+      transition: transform .3s cubic-bezier(.34,1.56,.64,1), box-shadow .3s, filter .2s;
+      cursor: pointer;
+    }
+    .dock-btn::before {
+      content: '';
+      position: absolute; top: 3px; left: 4px; right: 4px; height: 38%;
+      border-radius: 11px 11px 5px 5px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.26) 0%, transparent 100%);
+      pointer-events: none;
+    }
+    .dock-btn:hover {
+      transform: translateY(-13px) scale(1.2);
+      filter: brightness(1.28) saturate(1.2);
+      box-shadow: 0 18px 32px -6px var(--ishadow), inset 0 1px 0 rgba(255,255,255,0.3);
+    }
+    .dock-btn.active::after {
+      content: ''; position: absolute; bottom: -7px;
+      width: 5px; height: 5px; border-radius: 50%;
+      background: #5890ff; box-shadow: 0 0 9px #5890ff;
+      animation: dotPulse 1.8s ease-in-out infinite;
+    }
+    @keyframes dotPulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.5);opacity:.5} }
+
+    .dock-tip {
+      position: absolute; bottom: calc(100% + 12px); left: 50%;
+      transform: translateX(-50%) translateY(5px) scale(.85);
+      background: rgba(10,14,24,0.97); color: rgba(255,255,255,.92);
+      padding: 4px 11px; border-radius: 14px;
+      font-size: 11px; font-weight: 600; font-family: 'Inter', sans-serif;
+      white-space: nowrap;
+      opacity: 0; pointer-events: none;
+      transition: all .2s cubic-bezier(.34,1.56,.64,1);
+      border: 1px solid rgba(255,255,255,.07);
+      box-shadow: 0 6px 20px rgba(0,0,0,.7);
+    }
+    .dock-btn:hover .dock-tip { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  </style>
+</head>
+<body>
+
+  <div class="bg-layer"></div>
+  <div class="bg-spotlight" id="bgSpotlight"></div>
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo-icon">✦</div>
+      <div>
+        <div class="logo-text">FlexOS</div>
+        <div class="logo-sub">UNIVERSAL OS · v2.4</div>
+      </div>
+    </div>
+    <div class="topbar-center">FlexOS: Universal Operating System Simulation</div>
+    <div class="topbar-right">
+      <div class="pill"><div class="pill-dot"></div> SYS ONLINE</div>
+      <div class="pill"><div class="pill-dot"></div> 6 MODULES</div>
+      <div class="clock" id="clock">--:--:-- --</div>
+    </div>
+  </div>
+
+  <!-- GRID with smaller cards & larger gaps -->
+  <div class="grid">
+
+    <a href="{% url 'openParti' %}" class="card-link">
+      <div class="card card-pc">
+        <div class="card-spotlight"></div><div class="card-shimmer"></div><div class="card-glow"></div>
+        <div class="scan-corner tl"></div><div class="scan-corner tr"></div>
+        <div class="scan-corner bl"></div><div class="scan-corner br"></div>
+        <div class="scan-line"></div>
+        <div class="card-top">
+          <span class="card-num">01</span>
+          <div class="status-row"><span class="status-label">Connected</span><div class="status-dot"></div></div>
+        </div>
+        <div class="card-middle">
+          <div class="icon-box" style="--ibg:linear-gradient(145deg,#4a92ff,#1e50d8); --cr:74,146,255;">
+            <i class="fas fa-desktop"></i>
+          </div>
+        </div>
+        <div class="card-bottom">
+          <div class="card-title">This PC <span class="badge">Connected</span></div>
+          <div class="card-sub"><span class="spark">◈</span> Access System Core <span class="arrow">→</span></div>
+        </div>
+      </div>
+    </a>
+
+    <a href="{% url 'gesturePage' %}" class="card-link">
+      <div class="card card-gestura">
+        <div class="card-spotlight"></div><div class="card-shimmer"></div><div class="card-glow"></div>
+        <div class="scan-corner tl"></div><div class="scan-corner tr"></div>
+        <div class="scan-corner bl"></div><div class="scan-corner br"></div>
+        <div class="scan-line"></div>
+        <div class="card-top">
+          <span class="card-num">02</span>
+          <div class="status-row"><span class="status-label">Learning</span><div class="status-dot"></div></div>
+        </div>
+        <div class="card-middle">
+          <div class="icon-box" style="--ibg:linear-gradient(145deg,#d868ff,#8c28e0); --cr:200,112,255;">
+            <i class="fas fa-hand-peace"></i>
+          </div>
+        </div>
+        <div class="card-bottom">
+          <div class="card-title">Gestura <span class="badge">Active</span></div>
+          <div class="card-sub"><span class="spark">◈</span> Hand Gesture Control <span class="arrow">→</span></div>
+        </div>
+      </div>
+    </a>
+
+    <a href="{% url 'eyeBasedFeat' %}" class="card-link">
+    <div class="card card-iriskey">
+      <div class="card-spotlight"></div><div class="card-shimmer"></div><div class="card-glow"></div>
+      <div class="scan-corner tl"></div><div class="scan-corner tr"></div>
+      <div class="scan-corner bl"></div><div class="scan-corner br"></div>
+      <div class="scan-line"></div>
+      <div class="card-top">
+        <span class="card-num">03</span>
+        <div class="status-row"><span class="status-label">Scanning</span><div class="status-dot"></div></div>
+      </div>
+      <div class="card-middle">
+        <div class="icon-box" style="--ibg:linear-gradient(145deg,#14e8d2,#09a898); --cr:20,217,196;">
+          <i class="fas fa-eye"></i>
+        </div>
+      </div>
+      <div class="card-bottom">
+        <div class="card-title">IrisKey <span class="badge">Scanning</span></div>
+        <div class="card-sub"><span class="spark">◈</span> Retina Based Security <span class="arrow">→</span></div>
+      </div>
+    </div>
+</a>
+    <a href="{% url 'voiceFeat' %}" class="card-link">
+    <div class="card card-echovault">
+      <div class="card-spotlight"></div><div class="card-shimmer"></div><div class="card-glow"></div>
+      <div class="scan-corner tl"></div><div class="scan-corner tr"></div>
+      <div class="scan-corner bl"></div><div class="scan-corner br"></div>
+      <div class="scan-line"></div>
+      <div class="card-top">
+        <span class="card-num">04</span>
+        <div class="status-row"><span class="status-label">Listening</span><div class="status-dot"></div></div>
+      </div>
+      <div class="card-middle">
+        <div class="icon-box" style="--ibg:linear-gradient(145deg,#ff8040,#d84808); --cr:255,120,53;">
+          <i class="fas fa-microphone"></i>
+        </div>
+      </div>
+      <div class="card-bottom">
+        <div class="card-title">EchoVault <span class="badge">Ready</span></div>
+        <div class="card-sub"><span class="spark">◈</span> Voice Authentication <span class="arrow">→</span></div>
+      </div>
+    </div>
+  </a>
+  <a href="{% url 'faceFeat' %}" class="card-link">
+    <div class="card card-facevault">
+      <div class="card-spotlight"></div><div class="card-shimmer"></div><div class="card-glow"></div>
+      <div class="scan-corner tl"></div><div class="scan-corner tr"></div>
+      <div class="scan-corner bl"></div><div class="scan-corner br"></div>
+      <div class="scan-line"></div>
+      <div class="card-top">
+        <span class="card-num">05</span>
+        <div class="status-row"><span class="status-label">Active</span><div class="status-dot"></div></div>
+      </div>
+      <div class="card-middle">
+        <div class="icon-box" style="--ibg:linear-gradient(145deg,#f8c820,#c89000); --cr:248,195,32;">
+          <i class="fas fa-face-smile"></i>
+        </div>
+      </div>
+      <div class="card-bottom">
+        <div class="card-title">FaceVault <span class="badge">Active</span></div>
+        <div class="card-sub"><span class="spark">◈</span> Facial Recognition <span class="arrow">→</span></div>
+      </div>
+    </div>
+  </a>
+    <div class="card card-polytalk">
+      <div class="card-spotlight"></div><div class="card-shimmer"></div><div class="card-glow"></div>
+      <div class="scan-corner tl"></div><div class="scan-corner tr"></div>
+      <div class="scan-corner bl"></div><div class="scan-corner br"></div>
+      <div class="scan-line"></div>
+      <div class="card-top">
+        <span class="card-num">06</span>
+        <div class="status-row"><span class="status-label">Ready</span><div class="status-dot"></div></div>
+      </div>
+      <div class="card-middle">
+        <div class="icon-box" style="--ibg:linear-gradient(145deg,#d840f8,#9010c0); --cr:204,62,248;">
+          <i class="fas fa-comments"></i>
+        </div>
+      </div>
+      <div class="card-bottom">
+        <div class="card-title">PolyTalk <span class="badge">Ready</span></div>
+        <div class="card-sub"><span class="spark">◈</span> Multilingual AI Assistant <span class="arrow">→</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- DOCK (unchanged) -->
+  <div class="dock-wrap">
+    <div class="dock">
+      <div class="dock-btn active" style="--ibg:linear-gradient(145deg,#4a92ff,#1e50d8); --ishadow:rgba(74,146,255,0.65);">
+        <i class="fas fa-desktop"></i><span class="dock-tip">This PC</span>
+      </div>
+      <div class="dock-btn" style="--ibg:linear-gradient(145deg,#d868ff,#8c28e0); --ishadow:rgba(200,112,255,0.65);">
+        <i class="fas fa-hand-peace"></i><span class="dock-tip">Gestura</span>
+      </div>
+      <div class="dock-btn" style="--ibg:linear-gradient(145deg,#14e8d2,#09a898); --ishadow:rgba(20,217,196,0.65);">
+        <i class="fas fa-eye"></i><span class="dock-tip">IrisKey</span>
+      </div>
+      <div class="dock-sep"></div>
+      <div class="dock-btn" style="--ibg:linear-gradient(145deg,#ff8040,#d84808); --ishadow:rgba(255,120,53,0.65);">
+        <i class="fas fa-microphone"></i><span class="dock-tip">EchoVault</span>
+      </div>
+      <div class="dock-btn" style="--ibg:linear-gradient(145deg,#f8c820,#c89000); --ishadow:rgba(248,195,32,0.65);">
+        <i class="fas fa-face-smile"></i><span class="dock-tip">FaceVault</span>
+      </div>
+      <div class="dock-btn" style="--ibg:linear-gradient(145deg,#d840f8,#9010c0); --ishadow:rgba(204,62,248,0.65);">
+        <i class="fas fa-comments"></i><span class="dock-tip">PolyTalk</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function() {
+    // CURSOR SPOTLIGHT
+    const spotlight = document.getElementById('bgSpotlight');
+    document.addEventListener('mousemove', e => {
+      spotlight.style.setProperty('--mx', e.clientX + 'px');
+      spotlight.style.setProperty('--my', e.clientY + 'px');
+    });
+
+    // CLOCK
+    function tick(){
+      const n=new Date(); let h=n.getHours();
+      const m=String(n.getMinutes()).padStart(2,'0'), s=String(n.getSeconds()).padStart(2,'0');
+      const ap=h>=12?'PM':'AM'; h=h%12||12;
+      document.getElementById('clock').textContent=`${h}:${m}:${s} ${ap}`;
+    }
+    tick(); setInterval(tick,2000);
+
+    // CARD SPOTLIGHT
+    document.querySelectorAll('.card').forEach(card=>{
+      const sp=card.querySelector('.card-spotlight');
+      card.addEventListener('mousemove',e=>{
+        const r=card.getBoundingClientRect();
+        sp.style.setProperty('--x',((e.clientX-r.left)/r.width*100).toFixed(1)+'%');
+        sp.style.setProperty('--y',((e.clientY-r.top)/r.height*100).toFixed(1)+'%');
+      });
+    });
+
+    // AUTO SCAN
+    let idx=0; const cards=document.querySelectorAll('.card');
+    function scan(i){ cards.forEach(c=>c.classList.remove('auto-active')); cards[i].classList.add('auto-active'); }
+    scan(0);
+    setInterval(()=>{ idx=(idx+1)%cards.length; scan(idx); },6000);
+
+    // SPACE to activate
+    document.addEventListener('keydown',e=>{
+      if(e.code==='Space'){ e.preventDefault(); const a=cards[idx],l=a.closest('a'); if(l)l.click(); else a.click(); }
+    });
+  })();
+  </script>
+</body>
+</html>

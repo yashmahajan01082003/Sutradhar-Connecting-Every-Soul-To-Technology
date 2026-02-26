@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>File Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0f14;
+      --sidebar-bg: #111318;
+      --card-bg: #181b22;
+      --card-border: #252932;
+      --card-hover: #1f2330;
+      --accent: #4dabf7;
+      --text: #e8eaf0;
+      --muted: #6b7280;
+      --sidebar-hover: #1e2130;
+    }
+
+    body {
+      font-family: 'Sora', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      /* Original cursor kept — will fall back to auto if file missing */
+      cursor: url('/media/wallpaper/cursor.png'), auto;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 220px;
+      flex-shrink: 0;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--card-border);
+      display: flex;
+      flex-direction: column;
+      padding: 24px 0 16px;
+    }
+
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 20px 24px;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .sidebar-brand svg { color: var(--accent); }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 20px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13.5px;
+      transition: background .15s, color .15s;
+    }
+    .sidebar-link:hover { background: var(--sidebar-hover); color: var(--text); }
+    .sidebar-link svg { width: 17px; height: 17px; flex-shrink: 0; }
+
+    /* ── Main ── */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* ── Topbar ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .nav-btn {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      padding: 6px; border-radius: 6px; display: flex; align-items: center;
+      transition: background .15s, color .15s;
+    }
+    .nav-btn:hover { background: var(--card-bg); color: var(--text); }
+
+    .breadcrumb-bar {
+      flex: 1;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 7px 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+    }
+    .breadcrumb-bar a { color: var(--muted); text-decoration: none; }
+    .breadcrumb-bar a:hover { color: var(--text); }
+    .breadcrumb-bar .bc-active { color: var(--text); font-weight: 600; }
+    .breadcrumb-bar .sep { color: #3a3f4e; }
+
+    .search-box {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 7px 14px;
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; color: var(--muted); width: 190px;
+    }
+    .search-box input {
+      background: none; border: none; outline: none;
+      color: var(--text); font-family: inherit; font-size: 13px; width: 100%;
+    }
+    .search-box input::placeholder { color: var(--muted); }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      padding: 8px 20px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .toolbar-left { display: flex; align-items: center; gap: 6px; }
+    .tool-btn {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      padding: 7px; border-radius: 7px; display: flex; align-items: center;
+      transition: background .15s, color .15s;
+    }
+    .tool-btn:hover, .tool-btn.active { background: var(--card-bg); color: var(--text); }
+    .settings-btn {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      padding: 7px; border-radius: 7px; display: flex; align-items: center;
+      transition: background .15s, color .15s;
+    }
+    .settings-btn:hover { background: var(--card-bg); color: var(--text); }
+
+    /* ── Content ── */
+    .content { flex: 1; overflow-y: auto; padding: 20px; }
+    .content::-webkit-scrollbar { width: 6px; }
+    .content::-webkit-scrollbar-track { background: transparent; }
+    .content::-webkit-scrollbar-thumb { background: #2a2f3e; border-radius: 3px; }
+
+    /* ── Folder Grid ── */
+    .folder-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+    }
+
+    /* ── Folder Card (replaces old .folder box) ── */
+    .folder-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      cursor: pointer;
+      transition: background .15s, border-color .15s;
+      text-decoration: none;
+      color: inherit;
+    }
+    .folder-card:hover { background: var(--card-hover); border-color: #343a4e; }
+
+    /* SVG icon container — replaces <img src="/media/icons/folder.png"> */
+    .folder-icon {
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #1a5fa8 0%, #4dabf7 100%);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .folder-icon svg { width: 26px; height: 26px; color: #fff; }
+
+    .folder-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      word-break: break-word;
+    }
+    /* Auto Scan Highlight */
+
+.folder-card.scan-row {
+  outline: 2px dashed var(--accent);
+  background: #1c2130;
+}
+
+.folder-card.scan-active {
+  outline: 2px solid var(--accent);
+  background: #22283a;
+}
+
+  </style>
+</head>
+<body>
+
+<!-- ── Sidebar — Desktop link uses original {% url 'home' %} ── -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+    flexos
+  </div>
+
+  <!-- ✅ Original URL preserved -->
+  <a class="sidebar-link" href="{% url 'home' %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    Desktop
+  </a>
+  <a class="sidebar-link" href="#">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    Favorites
+  </a>
+  <a class="sidebar-link" href="#">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    Documents
+  </a>
+  <a class="sidebar-link" href="#">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+    Desktop
+  </a>
+  <a class="sidebar-link" href="#">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Downloads
+  </a>
+  <a class="sidebar-link" href="#">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+    Pictures
+  </a>
+  <a class="sidebar-link" href="#">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+    Music
+  </a>
+  <a class="sidebar-link" href="#">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+    Videos
+  </a>
+  <a class="sidebar-link" href="#">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+    Cloud
+  </a>
+</aside>
+
+<!-- ── Main ── -->
+<div class="main">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <button class="nav-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <button class="nav-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button class="nav-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></button>
+    <button class="nav-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
+
+    <!-- ✅ Original breadcrumb template vars: {{root}}, {{parent1}}, {{parent2}} -->
+    <div class="breadcrumb-bar">
+      <a href="#">{{root}}</a>
+      <span class="sep">›</span>
+      <a href="#">{{parent1}}</a>
+      <span class="sep">›</span>
+      <span class="bc-active">{{parent2}}</span>
+    </div>
+
+    <div class="search-box">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="Search...">
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <button class="tool-btn active" title="Grid view">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      </button>
+      <button class="tool-btn" title="List view">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      </button>
+    </div>
+    <button class="settings-btn" title="Settings">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
+
+  <!-- Folder Grid -->
+  <div class="content">
+    <div class="folder-grid">
+
+      {% for folder in folders %}
+      <!-- ✅ Original URL: {% url 'openPartiSpec' fName=folder %} preserved exactly -->
+      <a class="folder-card" href="{% url 'openPartiSpec' fName=folder %}">
+        <div class="folder-icon">
+          <!-- SVG replaces <img src="/media/icons/folder.png"> — no image file needed -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <ellipse cx="12" cy="5" rx="9" ry="3"/>
+            <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/>
+            <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/>
+          </svg>
+        </div>
+        <div class="folder-name">{{ folder }}</div>
+      </a>
+      {% endfor %}
+
+    </div>
+  </div>
+
+</div>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+  const cards = Array.from(document.querySelectorAll(".folder-card"));
+  const grid = document.querySelector(".folder-grid");
+
+  if (!cards.length || !grid) return;
+
+  let mode = "row"; // row → column
+  let currentRow = 0;
+  let currentCol = 0;
+  let interval = null;
+
+  const SCAN_SPEED = 1000; // 1 second per move (change if needed)
+
+  function getColumnCount() {
+    const style = window.getComputedStyle(grid);
+    return style.gridTemplateColumns.split(" ").length;
+  }
+
+  function getMaxRow() {
+    const columns = getColumnCount();
+    return Math.floor((cards.length - 1) / columns);
+  }
+
+  function getMaxCol(row) {
+    const columns = getColumnCount();
+    const start = row * columns;
+    const end = Math.min(start + columns, cards.length);
+    return end - start - 1;
+  }
+
+  function clearHighlights() {
+    cards.forEach(card => {
+      card.classList.remove("scan-row", "scan-active");
+    });
+  }
+
+  function highlightRow(row) {
+    clearHighlights();
+    const columns = getColumnCount();
+    const rowStart = row * columns;
+    if (cards[rowStart]) {
+      cards[rowStart].classList.add("scan-row");
+      cards[rowStart].scrollIntoView({ block: "nearest" });
+    }
+  }
+
+  function highlightColumn(row, col) {
+    clearHighlights();
+    const columns = getColumnCount();
+    const index = row * columns + col;
+    if (cards[index]) {
+      cards[index].classList.add("scan-active");
+      cards[index].scrollIntoView({ block: "nearest" });
+    }
+  }
+
+  function startRowScan() {
+    mode = "row";
+    currentRow = 0;
+    clearInterval(interval);
+
+    interval = setInterval(() => {
+      highlightRow(currentRow);
+      currentRow++;
+      if (currentRow > getMaxRow()) {
+        currentRow = 0;
+      }
+    }, SCAN_SPEED);
+  }
+
+  function startColumnScan(selectedRow) {
+    mode = "column";
+    currentCol = 0;
+    clearInterval(interval);
+
+    interval = setInterval(() => {
+      highlightColumn(selectedRow, currentCol);
+      currentCol++;
+      if (currentCol > getMaxCol(selectedRow)) {
+        currentCol = 0;
+      }
+    }, SCAN_SPEED);
+  }
+
+  document.addEventListener("keydown", (e) => {
+
+    if (e.code === "Space") {
+      e.preventDefault();
+
+      if (mode === "row") {
+        clearInterval(interval);
+        const selectedRow = currentRow === 0 ? getMaxRow() : currentRow - 1;
+        startColumnScan(selectedRow);
+      }
+      else if (mode === "column") {
+        clearInterval(interval);
+
+        const columns = getColumnCount();
+        const selectedCol = currentCol === 0 ? getMaxCol(currentRow) : currentCol - 1;
+        const index = currentRow * columns + selectedCol;
+
+        if (cards[index]) {
+          window.location.href = cards[index].href;
+        }
+      }
+    }
+  });
+
+  startRowScan();
+});
+</script>
+
+</body>
+</html>

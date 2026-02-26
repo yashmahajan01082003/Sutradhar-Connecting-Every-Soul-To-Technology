@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>File Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0f14;
+      --sidebar-bg: #111318;
+      --card-bg: #181b22;
+      --card-border: #252932;
+      --card-hover: #1f2330;
+      --accent: #4dabf7;
+      --text: #e8eaf0;
+      --muted: #6b7280;
+      --sidebar-hover: #1e2130;
+    }
+
+    body {
+      font-family: 'Sora', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      cursor: url('/media/wallpaper/cursor.png'), auto;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 220px;
+      flex-shrink: 0;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--card-border);
+      display: flex;
+      flex-direction: column;
+      padding: 24px 0 16px;
+    }
+
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 20px 24px;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .sidebar-brand svg { color: var(--accent); }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 20px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13.5px;
+      transition: background .15s, color .15s;
+      cursor: pointer;
+    }
+    .sidebar-link:hover { background: var(--sidebar-hover); color: var(--text); }
+    .sidebar-link svg { width: 17px; height: 17px; flex-shrink: 0; }
+
+    /* ── Main ── */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* ── Topbar ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 20px;
+      border-bottom: 1px solid var(--card-border);
+      background-color: rgba(0,0,0,0.85);
+    }
+
+    .nav-btn {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      padding: 6px; border-radius: 6px; display: flex; align-items: center;
+      transition: background .15s, color .15s;
+    }
+    .nav-btn:hover { background: var(--card-bg); color: var(--text); }
+
+    .breadcrumb-bar {
+      flex: 1;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 5px 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      min-width: 200px;
+    }
+    .breadcrumb-bar a { color: var(--muted); text-decoration: none; }
+    .breadcrumb-bar a:hover { color: var(--text); }
+    .breadcrumb-bar .bc-active { color: var(--text); font-weight: 600; }
+    .breadcrumb-bar .sep { color: #3a3f4e; }
+
+    .status-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text);
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 4px 12px;
+      white-space: nowrap;
+    }
+
+    #New1 {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-family: inherit;
+      font-size: 12px;
+      color: var(--text);
+      cursor: pointer;
+      outline: none;
+    }
+    #New1 option { background-color: #111318; }
+
+    .datetime-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border-left: 1px solid rgba(255,255,255,0.2);
+      padding-left: 12px;
+    }
+    .date, .time { color: white; padding: 0 2px; }
+
+    .search-box {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 5px 12px;
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; color: var(--muted); width: 170px;
+    }
+    .search-box input {
+      background: none; border: none; outline: none;
+      color: var(--text); font-family: inherit; font-size: 13px; width: 100%;
+    }
+    .search-box input::placeholder { color: var(--muted); }
+
+    /* ── Hidden form for new folder/file ── */
+    #form1 {
+      display: none;
+      color: white;
+      background-color: rgba(0,0,0,0.9);
+      border-radius: 10px;
+      padding: 15px;
+      position: absolute;
+      top: 60px;
+      left: 300px;
+      z-index: 1000;
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(5px);
+    }
+    #form1 label { font-size: 13px; }
+    #form1 input[type="text"] {
+      color: white;
+      background-color: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-family: inherit;
+      outline: none;
+      width: 100%;
+    }
+    #form1 input[type="submit"] {
+      border-radius: 6px;
+      padding: 6px 14px;
+      background: var(--accent);
+      color: #0d0f14;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      margin-top: 10px;
+      width: 100%;
+    }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      padding: 6px 20px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .toolbar-left { display: flex; align-items: center; gap: 4px; }
+    .tool-btn {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      padding: 6px; border-radius: 6px; display: flex; align-items: center;
+      transition: background .15s, color .15s;
+    }
+    .tool-btn:hover, .tool-btn.active { background: var(--card-bg); color: var(--text); }
+    .settings-btn {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      padding: 6px; border-radius: 6px; display: flex; align-items: center;
+      transition: background .15s, color .15s;
+    }
+    .settings-btn:hover { background: var(--card-bg); color: var(--text); }
+
+    /* ── Content grid ── */
+    .content { flex: 1; overflow-y: auto; padding: 20px; }
+    .content::-webkit-scrollbar { width: 6px; }
+    .content::-webkit-scrollbar-track { background: transparent; }
+    .content::-webkit-scrollbar-thumb { background: #2a2f3e; border-radius: 3px; }
+
+    .folder-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 12px;
+    }
+
+    .folder-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      cursor: pointer;
+      transition: background .15s, border-color .15s;
+      text-decoration: none;
+      color: inherit;
+    }
+    .folder-card:hover { background: var(--card-hover); border-color: #343a4e; }
+
+    .item-icon {
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .folder-icon { background: linear-gradient(135deg, #1a5fa8 0%, #4dabf7 100%); }
+    .file-icon { background: linear-gradient(135deg, #1a6b3a 0%, #40c070 100%); }
+    .item-icon svg { width: 26px; height: 26px; color: #fff; }
+
+    .folder-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      word-break: break-word;
+    }
+    .folder-card.active-card {
+      outline: 3px solid #4dabf7;
+      background: rgba(77, 171, 247, 0.3);
+      transform: scale(1.05);
+      transition: all 0.2s ease;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Sidebar ── -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+    flexos
+  </div>
+
+  <a class="sidebar-link" href="{% url 'home' %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    Desktop
+  </a>
+  <a class="sidebar-link" href="{% url 'openParti' %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M8 4v16"/></svg>
+    C:\
+  </a>
+  <a class="sidebar-link" href="{% url 'openParti' %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/></svg>
+    D:\
+  </a>
+  <a class="sidebar-link" href="#">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+    To the Top
+  </a>
+  <a class="sidebar-link" onclick="goBack()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    Previous Directory
+  </a>
+  <a class="sidebar-link" onclick="goForward()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    Next Directory
+  </a>
+  <script>
+    function goBack() { history.back(); }
+    function goForward() { history.forward(); }
+  </script>
+</aside>
+
+<!-- ── Main Area ── -->
+<div class="main">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <button class="nav-btn" onclick="goBack()" title="Back">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <button class="nav-btn" onclick="goForward()" title="Forward">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+    <button class="nav-btn" onclick="window.location.href='{% url 'home' %}'" title="Up to Desktop">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+    </button>
+    <button class="nav-btn" onclick="location.reload()" title="Refresh">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+    </button>
+
+    <div class="breadcrumb-bar">
+      <span class="bc-active">{{root}}</span>
+    </div>
+
+    <select id="New1">
+      <option value="option1">New</option>
+      <option value="option2">New Folder</option>
+      <option value="option3">New File</option>
+    </select>
+
+    <div class="datetime-container">
+      <div class="date" id="date"></div>
+      <div class="time" id="time"></div>
+    </div>
+
+    <div class="search-box">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="Search...">
+    </div>
+  </div>
+
+  <!-- Hidden form for new folder/file -->
+  <form action="{% url 'newD2' fName0=root %}" id="form1" method="get">
+    <label for="name">Name:</label>
+    <input type="text" id="name" name="name" required>
+    <input type="text" id="flag" name="flag" style="display:none;">
+    <br><br>
+    <input type="submit" value="Submit">
+  </form>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <button class="tool-btn active" title="Grid view">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      </button>
+      <button class="tool-btn" title="List view">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      </button>
+    </div>
+    <button class="settings-btn" title="Settings">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
+
+  <!-- Content grid -->
+  <div class="content">
+    <div class="folder-grid">
+
+      {% for folder in folders %}
+      <a class="folder-card" href="{% url 'openPartiSpec2' fName0=root fName1=folder %}">
+        <div class="item-icon folder-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+        <div class="folder-name">{{ folder }}</div>
+      </a>
+      {% endfor %}
+
+      {% for file in files %}
+      <a class="folder-card" href="{% url 'openPartiSpec2' fName0=root fName1=file %}">
+        <div class="item-icon file-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+        </div>
+        <div class="folder-name">{{ file }}</div>
+      </a>
+      {% endfor %}
+
+    </div>
+  </div>
+</div>
+
+<!-- JavaScript -->
+<script>
+  function updateDateTime() {
+    var now = new Date();
+    var dateEl = document.getElementById('date');
+    var timeEl = document.getElementById('time');
+    if (dateEl) dateEl.textContent = now.toLocaleDateString();
+    if (timeEl) timeEl.textContent = now.toLocaleTimeString();
+  }
+  updateDateTime();
+  setInterval(updateDateTime, 1000);
+
+  function toggleFormVisibility() {
+    var form = document.getElementById('form1');
+    var select = document.getElementById('New1');
+    if (select.value === 'option2') {
+      form.style.display = 'block';
+      document.getElementById("flag").value = "2";
+      form.style.marginTop = '120px';
+    } else if (select.value === 'option3') {
+      form.style.display = 'block';
+      document.getElementById("flag").value = "3";
+      form.style.marginTop = '120px';
+    } else {
+      form.style.display = 'none';
+      form.style.marginTop = '10px';
+    }
+  }
+  document.getElementById('New1').addEventListener('change', toggleFormVisibility);
+</script>
+
+<script>
+/* ===================================
+   MATRIX SELECTOR (FIXED)
+=================================== */
+
+const cards = document.querySelectorAll(".folder-card");
+
+let rows = [];
+let currentRow = 0;
+let currentCol = 0;
+
+let mode = "vertical"; // "vertical" or "horizontal"
+let timer;
+const speed = 1000;    // change this to adjust auto‑scan speed
+
+/* -------- Build Rows -------- */
+function buildRows() {
+  const rowMap = {};
+
+  cards.forEach(card => {
+    const top = card.offsetTop;
+    if (!rowMap[top]) rowMap[top] = [];
+    rowMap[top].push(card);
+  });
+
+  rows = Object.values(rowMap);
+}
+
+/* -------- Highlight -------- */
+function clearHighlight() {
+  cards.forEach(card => card.classList.remove("active-card"));
+}
+
+function highlight(card) {
+  clearHighlight();
+  if (card) card.classList.add("active-card");
+}
+
+/* -------- Vertical Movement -------- */
+function verticalMove() {
+  if (!rows.length) return;
+  if (currentRow >= rows.length) currentRow = 0;
+
+  const row = rows[currentRow];
+  if (row && row.length > 0) {
+    highlight(row[0]);
+    currentRow = (currentRow + 1) % rows.length;
+  }
+}
+
+/* -------- Horizontal Movement -------- */
+function horizontalMove() {
+  if (!rows.length) return;
+  if (currentRow >= rows.length) currentRow = 0;
+
+  const row = rows[currentRow];
+  if (!row || row.length === 0) return;
+  if (currentCol >= row.length) currentCol = 0;
+
+  highlight(row[currentCol]);
+  currentCol = (currentCol + 1) % row.length;
+}
+
+/* -------- SPACE KEY (FIXED) -------- */
+document.addEventListener("keydown", function(e) {
+  if (e.code === "Space") {
+    e.preventDefault();
+
+    const activeCard = document.querySelector('.folder-card.active-card');
+    if (!activeCard) return;
+
+    if (mode === "vertical") {
+      // Find the row of the currently active card
+      const rowIndex = rows.findIndex(row => row.includes(activeCard));
+      if (rowIndex === -1) return;
+
+      // Set current row to the active row, column to 0
+      currentRow = rowIndex;
+      currentCol = 0;
+
+      // Switch to horizontal mode
+      clearInterval(timer);
+      mode = "horizontal";
+      timer = setInterval(horizontalMove, speed);
+    } else {
+      // Horizontal mode: open the active card
+      window.location.href = activeCard.href;
+    }
+  }
+});
+
+/* -------- INIT -------- */
+buildRows();
+timer = setInterval(verticalMove, speed);
+
+/* -------- Rebuild on Resize -------- */
+window.addEventListener("resize", function() {
+  buildRows();
+});
+</script>
+
+</body>
+</html>
